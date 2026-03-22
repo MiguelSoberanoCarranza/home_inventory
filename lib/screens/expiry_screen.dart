@@ -33,18 +33,24 @@ class ExpiryScreen extends StatelessWidget {
             final now = DateTime.now();
             final oneWeekFromNow = now.add(const Duration(days: 7));
             final endOfMonth = DateTime(now.year, now.month + 1, 0);
+            final lotsWithStock =
+                state.inventory.where((lot) => lot.quantity > 0).toList();
 
-            final expired = state.inventory.where((lot) => lot.expiresOn != null && lot.expiresOn!.isBefore(now)).toList();
-            final thisWeek = state.inventory.where((lot) => 
-              lot.expiresOn != null && 
-              lot.expiresOn!.isAfter(now) && 
-              lot.expiresOn!.isBefore(oneWeekFromNow)
-            ).toList();
-            final thisMonth = state.inventory.where((lot) => 
-              lot.expiresOn != null && 
-              lot.expiresOn!.isAfter(now) && 
-              lot.expiresOn!.isBefore(endOfMonth)
-            ).toList();
+            final expired = lotsWithStock
+                .where((lot) => lot.expiresOn != null && lot.expiresOn!.isBefore(now))
+                .toList();
+            final thisWeek = lotsWithStock
+                .where((lot) =>
+                    lot.expiresOn != null &&
+                    lot.expiresOn!.isAfter(now) &&
+                    lot.expiresOn!.isBefore(oneWeekFromNow))
+                .toList();
+            final thisMonth = lotsWithStock
+                .where((lot) =>
+                    lot.expiresOn != null &&
+                    lot.expiresOn!.isAfter(now) &&
+                    lot.expiresOn!.isBefore(endOfMonth))
+                .toList();
 
             return TabBarView(
               children: [

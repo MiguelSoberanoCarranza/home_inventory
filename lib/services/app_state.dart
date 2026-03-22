@@ -160,17 +160,17 @@ class AppState with ChangeNotifier {
 
   // Analytics helper (Dashboard)
   int get totalProducts => _products.length;
-  int get totalLots => _inventory.length;
+  int get totalLots => _inventory.where((lot) => lot.quantity > 0).length;
   int get expiringSoonCount =>
-      _inventory.where((lot) => lot.statusColor == 'yellow').length;
+      _inventory.where((lot) => lot.quantity > 0 && lot.statusColor == 'yellow').length;
   int get expiredCount =>
-      _inventory.where((lot) => lot.statusColor == 'red').length;
+      _inventory.where((lot) => lot.quantity > 0 && lot.statusColor == 'red').length;
   int get pendingShoppingItems =>
       _shoppingList.where((item) => !item.completed).length;
 
   Map<String, int> get countByLocation {
     final counts = <String, int>{};
-    for (var lot in _inventory) {
+    for (var lot in _inventory.where((lot) => lot.quantity > 0)) {
       counts[lot.locationName] = (counts[lot.locationName] ?? 0) + 1;
     }
     return counts;

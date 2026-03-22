@@ -81,6 +81,7 @@ class InventoryLot {
 
   // Visual traffic light indicator
   String get statusColor {
+    if (quantity <= 0) return 'ok'; // No aplicable si está agotado
     if (expiresOn == null) return 'ok';
     final now = DateTime.now();
     final difference = expiresOn!.difference(now).inDays;

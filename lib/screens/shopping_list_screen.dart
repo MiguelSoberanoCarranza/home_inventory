@@ -1,9 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../services/app_state.dart';
+import 'package:provider/provider.dart';
+
 import '../models/inventory_models.dart';
+import '../services/app_state.dart';
+
+const List<String> _shoppingAisles = [
+  'Frutas y verduras',
+  'Carnes y pescados',
+  'Deli y preparados',
+  'Panaderia y tortillas',
+  'Lacteos y huevos',
+  'Abarrotes y enlatados',
+  'Desayuno y cereal',
+  'Botanas y dulces',
+  'Bebidas',
+  'Congelados',
+  'Reposteria y especias',
+  'Comida internacional',
+  'Limpieza y hogar',
+  'Cuidado personal y salud',
+  'Bebes',
+  'Mascotas',
+  'Otros',
+];
 
 class ShoppingListScreen extends StatefulWidget {
   const ShoppingListScreen({super.key});
@@ -71,7 +92,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
               );
             },
             tooltip: 'Filtrar por prioridad',
-          )
+          ),
         ],
       ),
       body: Consumer<AppState>(
@@ -93,33 +114,18 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
               ? const Center(child: Text('Tu lista está vacía.'))
               : ListView(
                   children: [
-                    if (pending.isNotEmpty) ...[
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        child: Text(
-                          'Pendientes',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
+                    if (pending.isNotEmpty)
+                      _ShoppingSection(
+                        title: 'Pendientes',
+                        items: pending,
                       ),
-                      ...pending.map((item) => _ShoppingListItem(item: item)),
-                    ],
-                    if (completed.isNotEmpty) ...[
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-                        child: Text(
-                          'Completados',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Colors.grey,
-                          ),
-                        ),
+                    if (completed.isNotEmpty)
+                      _ShoppingSection(
+                        title: 'Completados',
+                        items: completed,
+                        titleColor: Colors.grey,
+                        topPadding: pending.isNotEmpty ? 24 : 16,
                       ),
-                      ...completed.map((item) => _ShoppingListItem(item: item)),
-                    ],
                   ],
                 );
         },
@@ -140,7 +146,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
         TextEditingController(text: item?.quantity.toString() ?? '1');
     final unitController = TextEditingController(text: item?.unit ?? 'Unidad(es)');
     String priority = item?.priority ?? 'media';
-    final categoryController = TextEditingController(text: item?.category ?? 'Despensa');
+    String category = _resolveCategoryLabel(item?.category, fallbackName: item?.name ?? '');
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -180,7 +186,9 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                       child: TextFormField(
                         controller: quantityController,
                         decoration: const InputDecoration(labelText: 'Cantidad'),
-                        keyboardType: TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         validator: _validateQuantity,
                       ),
                     ),
@@ -206,6 +214,17 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                       .toList(),
                   onChanged: (v) => setModalState(() => priority = v!),
                 ),
+                DropdownButtonFormField<String>(
+                  value: category,
+                  decoration: const InputDecoration(labelText: 'Pasillo'),
+                  items: _shoppingAisles
+                      .map((aisle) => DropdownMenuItem(
+                            value: aisle,
+                            child: Text(aisle),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setModalState(() => category = value!),
+                ),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
@@ -220,7 +239,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                             final quantity = double.tryParse(quantityController.text);
                             if (quantity == null || quantity <= 0) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Cantidad inválida')),
+                                const SnackBar(content: Text('Cantidad invalida')),
                               );
                               return;
                             }
@@ -233,7 +252,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                               'quantity': quantity,
                               'unit': unitController.text.trim(),
                               'priority': priority,
-                              'category': categoryController.text.trim(),
+                              'category': category,
                               'completed': item?.completed ?? false,
                             };
 
@@ -282,12 +301,72 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     }
     final parsed = double.tryParse(value);
     if (parsed == null) {
-      return 'Número inválido';
+      return 'Numero invalido';
     }
     if (parsed <= 0) {
       return 'Debe ser mayor a 0';
     }
     return null;
+  }
+}
+
+class _ShoppingSection extends StatelessWidget {
+  final String title;
+  final List<ShoppingItem> items;
+  final Color? titleColor;
+  final double topPadding;
+
+  const _ShoppingSection({
+    required this.title,
+    required this.items,
+    this.titleColor,
+    this.topPadding = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final groupedItems = _groupItemsByAisle(items);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, topPadding, 16, 8),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: titleColor,
+            ),
+          ),
+        ),
+        for (final entry in groupedItems.entries) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Row(
+              children: [
+                const Icon(
+                  LucideIcons.store,
+                  size: 16,
+                  color: Color(0xFF2E7D32),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  entry.key,
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1B5E20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...entry.value.map((item) => _ShoppingListItem(item: item)),
+        ],
+      ],
+    );
   }
 }
 
@@ -312,8 +391,9 @@ class _ShoppingListItem extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
-      subtitle:
-          Text('${item.quantity} ${item.unit} • ${item.priority.toUpperCase()}'),
+      subtitle: Text(
+        '${item.quantity} ${item.unit} • ${item.priority.toUpperCase()}',
+      ),
       trailing: IconButton(
         icon: const Icon(LucideIcons.trash2, size: 20, color: Colors.grey),
         onPressed: () => context.read<AppState>().deleteShoppingItem(item.id),
@@ -321,4 +401,224 @@ class _ShoppingListItem extends StatelessWidget {
       ),
     );
   }
+}
+
+Map<String, List<ShoppingItem>> _groupItemsByAisle(List<ShoppingItem> items) {
+  final grouped = <String, List<ShoppingItem>>{};
+  for (final item in items) {
+    final aisle = _resolveCategoryLabel(item.category, fallbackName: item.name);
+    grouped.putIfAbsent(aisle, () => []).add(item);
+  }
+
+  final sortedEntries = grouped.entries.toList()
+    ..sort((a, b) {
+      final aIndex = _shoppingAisles.indexOf(a.key);
+      final bIndex = _shoppingAisles.indexOf(b.key);
+      final normalizedAIndex = aIndex == -1 ? _shoppingAisles.length : aIndex;
+      final normalizedBIndex = bIndex == -1 ? _shoppingAisles.length : bIndex;
+      if (normalizedAIndex != normalizedBIndex) {
+        return normalizedAIndex.compareTo(normalizedBIndex);
+      }
+      return a.key.compareTo(b.key);
+    });
+
+  for (final entry in sortedEntries) {
+    entry.value.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
+
+  return Map<String, List<ShoppingItem>>.fromEntries(sortedEntries);
+}
+
+String _resolveCategoryLabel(String? rawCategory, {String fallbackName = ''}) {
+  final normalized = _normalizeText(rawCategory);
+  if (normalized.isEmpty) {
+    return _inferAisleFromName(fallbackName);
+  }
+
+  if (normalized.contains('fruta') ||
+      normalized.contains('verdura') ||
+      normalized.contains('vegetal')) {
+    return 'Frutas y verduras';
+  }
+  if (normalized.contains('carne') ||
+      normalized.contains('pollo') ||
+      normalized.contains('pescado') ||
+      normalized.contains('marisco')) {
+    return 'Carnes y pescados';
+  }
+  if (normalized.contains('deli') ||
+      normalized.contains('fiambre') ||
+      normalized.contains('jamon') ||
+      normalized.contains('embutido') ||
+      normalized.contains('preparad')) {
+    return 'Deli y preparados';
+  }
+  if (normalized.contains('lacteo') ||
+      normalized.contains('leche') ||
+      normalized.contains('queso') ||
+      normalized.contains('huevo') ||
+      normalized.contains('yogurt')) {
+    return 'Lacteos y huevos';
+  }
+  if (normalized.contains('pan') ||
+      normalized.contains('panaderia') ||
+      normalized.contains('tortilla')) {
+    return 'Panaderia y tortillas';
+  }
+  if (normalized.contains('congel')) {
+    return 'Congelados';
+  }
+  if (normalized.contains('bebida') ||
+      normalized.contains('jugo') ||
+      normalized.contains('refresco')) {
+    return 'Bebidas';
+  }
+  if (normalized.contains('enlat') ||
+      normalized.contains('conserva') ||
+      normalized.contains('despensa') ||
+      normalized.contains('abarrote') ||
+      normalized.contains('grano') ||
+      normalized.contains('pasta') ||
+      normalized.contains('arroz') ||
+      normalized.contains('frijol')) {
+    return 'Abarrotes y enlatados';
+  }
+  if (normalized.contains('desayuno') ||
+      normalized.contains('cereal') ||
+      normalized.contains('avena') ||
+      normalized.contains('mermelada')) {
+    return 'Desayuno y cereal';
+  }
+  if (normalized.contains('snack') ||
+      normalized.contains('botana') ||
+      normalized.contains('galleta') ||
+      normalized.contains('dulce') ||
+      normalized.contains('chocolate') ||
+      normalized.contains('candy')) {
+    return 'Botanas y dulces';
+  }
+  if (normalized.contains('hornear') ||
+      normalized.contains('repost') ||
+      normalized.contains('harina') ||
+      normalized.contains('azucar') ||
+      normalized.contains('especia') ||
+      normalized.contains('condimento')) {
+    return 'Reposteria y especias';
+  }
+  if (normalized.contains('internacional') ||
+      normalized.contains('mexican') ||
+      normalized.contains('asian') ||
+      normalized.contains('italian')) {
+    return 'Comida internacional';
+  }
+  if (normalized.contains('limpieza') ||
+      normalized.contains('hogar') ||
+      normalized.contains('detergente')) {
+    return 'Limpieza y hogar';
+  }
+  if (normalized.contains('personal') ||
+      normalized.contains('higiene') ||
+      normalized.contains('shampoo') ||
+      normalized.contains('salud') ||
+      normalized.contains('beauty')) {
+    return 'Cuidado personal y salud';
+  }
+  if (normalized.contains('bebe') ||
+      normalized.contains('baby') ||
+      normalized.contains('panal')) {
+    return 'Bebes';
+  }
+  if (normalized.contains('mascota') ||
+      normalized.contains('perro') ||
+      normalized.contains('gato')) {
+    return 'Mascotas';
+  }
+  final directMatch = _shoppingAisles.cast<String?>().firstWhere(
+        (aisle) => _normalizeText(aisle) == normalized,
+        orElse: () => null,
+      );
+  return directMatch ?? _inferAisleFromName(fallbackName);
+}
+
+String _inferAisleFromName(String name) {
+  final normalizedName = _normalizeText(name);
+  if (normalizedName.contains('manzana') ||
+      normalizedName.contains('platano') ||
+      normalizedName.contains('jitomate') ||
+      normalizedName.contains('cebolla')) {
+    return 'Frutas y verduras';
+  }
+  if (normalizedName.contains('leche') ||
+      normalizedName.contains('queso') ||
+      normalizedName.contains('huevo')) {
+    return 'Lacteos y huevos';
+  }
+  if (normalizedName.contains('jamon') ||
+      normalizedName.contains('salchicha') ||
+      normalizedName.contains('chorizo')) {
+    return 'Deli y preparados';
+  }
+  if (normalizedName.contains('pollo') ||
+      normalizedName.contains('carne') ||
+      normalizedName.contains('atun')) {
+    return 'Carnes y pescados';
+  }
+  if (normalizedName.contains('pan') || normalizedName.contains('tortilla')) {
+    return 'Panaderia y tortillas';
+  }
+  if (normalizedName.contains('agua') ||
+      normalizedName.contains('jugo') ||
+      normalizedName.contains('cafe')) {
+    return 'Bebidas';
+  }
+  if (normalizedName.contains('arroz') ||
+      normalizedName.contains('frijol') ||
+      normalizedName.contains('pasta') ||
+      normalizedName.contains('aceite') ||
+      normalizedName.contains('atun en lata')) {
+    return 'Abarrotes y enlatados';
+  }
+  if (normalizedName.contains('cereal') ||
+      normalizedName.contains('avena') ||
+      normalizedName.contains('granola')) {
+    return 'Desayuno y cereal';
+  }
+  if (normalizedName.contains('papas') ||
+      normalizedName.contains('galletas') ||
+      normalizedName.contains('chocolate')) {
+    return 'Botanas y dulces';
+  }
+  if (normalizedName.contains('harina') ||
+      normalizedName.contains('azucar') ||
+      normalizedName.contains('canela')) {
+    return 'Reposteria y especias';
+  }
+  if (normalizedName.contains('detergente') ||
+      normalizedName.contains('cloro') ||
+      normalizedName.contains('papel higienico')) {
+    return 'Limpieza y hogar';
+  }
+  if (normalizedName.contains('shampoo') ||
+      normalizedName.contains('pasta dental') ||
+      normalizedName.contains('jabon')) {
+    return 'Cuidado personal y salud';
+  }
+  if (normalizedName.contains('panal') || normalizedName.contains('toallitas')) {
+    return 'Bebes';
+  }
+  if (normalizedName.contains('croqueta') || normalizedName.contains('comida para perro')) {
+    return 'Mascotas';
+  }
+  return 'Otros';
+}
+
+String _normalizeText(String? value) {
+  return (value ?? '')
+      .toLowerCase()
+      .trim()
+      .replaceAll('á', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ú', 'u');
 }
