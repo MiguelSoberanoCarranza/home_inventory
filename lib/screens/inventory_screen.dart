@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/inventory_models.dart';
 import '../services/app_state.dart';
 import 'add_edit_lot_screen.dart';
+import 'audit_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -30,7 +31,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(LucideIcons.clipboardCheck, color: Color(0xFF2E7D32)),
+            tooltip: 'Auditoría',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AuditScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(LucideIcons.plusCircle, color: Color(0xFF2E7D32)),
+            tooltip: 'Añadir Lote',
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AddEditLotScreen()),
