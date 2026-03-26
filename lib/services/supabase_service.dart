@@ -5,12 +5,19 @@ import '../utils/result.dart';
 class SupabaseService {
   final supabase = Supabase.instance.client;
 
+  String get _userId {
+    final user = supabase.auth.currentUser;
+    if (user == null) throw Exception('No hay usuario autenticado');
+    return user.id;
+  }
+
   // --- Products ---
   Future<Result<List<Product>>> getProducts() async {
     try {
       final response = await supabase
           .from('products')
           .select()
+          .eq('user_id', _userId)
           .order('name', ascending: true);
       final products =
           (response as List).map((json) => Product.fromJson(json)).toList();
@@ -28,6 +35,7 @@ class SupabaseService {
       final response = await supabase
           .from('inventory_lots')
           .select('*, products(*), locations(*)')
+          .eq('user_id', _userId)
           .order('expires_on', ascending: true);
       final inventory =
           (response as List).map((json) => InventoryLot.fromJson(json)).toList();
@@ -41,6 +49,7 @@ class SupabaseService {
 
   Future<Result<void>> upsertInventoryLot(Map<String, dynamic> data) async {
     try {
+      data['user_id'] = _userId;
       await supabase.from('inventory_lots').upsert(data);
       return const Result.success(null);
     } on PostgrestException catch (e) {
@@ -52,7 +61,7 @@ class SupabaseService {
 
   Future<Result<void>> deleteInventoryLot(String id) async {
     try {
-      await supabase.from('inventory_lots').delete().match({'id': id});
+      await supabase.from('inventory_lots').delete().match({'id': id, 'user_id': _userId});
       return const Result.success(null);
     } on PostgrestException catch (e) {
       return Result.failure('Error al eliminar lote: ${e.message}');
@@ -67,6 +76,7 @@ class SupabaseService {
       final response = await supabase
           .from('shopping_list')
           .select()
+          .eq('user_id', _userId)
           .order('completed', ascending: false)
           .order('priority', ascending: true);
       final items =
@@ -81,6 +91,7 @@ class SupabaseService {
 
   Future<Result<void>> upsertShoppingItem(Map<String, dynamic> data) async {
     try {
+      data['user_id'] = _userId;
       await supabase.from('shopping_list').upsert(data);
       return const Result.success(null);
     } on PostgrestException catch (e) {
@@ -92,7 +103,7 @@ class SupabaseService {
 
   Future<Result<void>> deleteShoppingItem(String id) async {
     try {
-      await supabase.from('shopping_list').delete().match({'id': id});
+      await supabase.from('shopping_list').delete().match({'id': id, 'user_id': _userId});
       return const Result.success(null);
     } on PostgrestException catch (e) {
       return Result.failure('Error al eliminar item: ${e.message}');
@@ -106,7 +117,7 @@ class SupabaseService {
       await supabase
           .from('shopping_list')
           .update({'completed': completed})
-          .match({'id': id});
+          .match({'id': id, 'user_id': _userId});
       return const Result.success(null);
     } on PostgrestException catch (e) {
       return Result.failure('Error al actualizar item: ${e.message}');
@@ -118,7 +129,7 @@ class SupabaseService {
   // --- Locations ---
   Future<Result<List<Location>>> getLocations() async {
     try {
-      final response = await supabase.from('locations').select();
+      final response = await supabase.from('locations').select().eq('user_id', _userId);
       final locations =
           (response as List).map((json) => Location.fromJson(json)).toList();
       return Result.success(locations);

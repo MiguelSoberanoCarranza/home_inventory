@@ -118,6 +118,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                       _ShoppingSection(
                         title: 'Pendientes',
                         items: pending,
+                        onEdit: (item) => _showAddItemDialog(context, item),
                       ),
                     if (completed.isNotEmpty)
                       _ShoppingSection(
@@ -125,6 +126,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                         items: completed,
                         titleColor: Colors.grey,
                         topPadding: pending.isNotEmpty ? 24 : 16,
+                        onEdit: (item) => _showAddItemDialog(context, item),
                       ),
                   ],
                 );
@@ -315,10 +317,12 @@ class _ShoppingSection extends StatelessWidget {
   final List<ShoppingItem> items;
   final Color? titleColor;
   final double topPadding;
+  final Function(ShoppingItem) onEdit;
 
   const _ShoppingSection({
     required this.title,
     required this.items,
+    required this.onEdit,
     this.titleColor,
     this.topPadding = 16,
   });
@@ -363,7 +367,7 @@ class _ShoppingSection extends StatelessWidget {
               ],
             ),
           ),
-          ...entry.value.map((item) => _ShoppingListItem(item: item)),
+          ...entry.value.map((item) => _ShoppingListItem(item: item, onEdit: onEdit)),
         ],
       ],
     );
@@ -372,8 +376,9 @@ class _ShoppingSection extends StatelessWidget {
 
 class _ShoppingListItem extends StatelessWidget {
   final ShoppingItem item;
+  final Function(ShoppingItem) onEdit;
 
-  const _ShoppingListItem({required this.item});
+  const _ShoppingListItem({required this.item, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -394,11 +399,43 @@ class _ShoppingListItem extends StatelessWidget {
       subtitle: Text(
         '${item.quantity} ${item.unit} • ${item.priority.toUpperCase()}',
       ),
-      trailing: IconButton(
-        icon: const Icon(LucideIcons.trash2, size: 20, color: Colors.grey),
-        onPressed: () => context.read<AppState>().deleteShoppingItem(item.id),
-        tooltip: 'Eliminar',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.edit_rounded, size: 20, color: Colors.blueGrey),
+            onPressed: () => onEdit(item),
+            tooltip: 'Editar',
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.grey),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Eliminar producto'),
+                  content: Text('¿Seguro que deseas eliminar "${item.name}" de la lista?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true && context.mounted) {
+                context.read<AppState>().deleteShoppingItem(item.id);
+              }
+            },
+            tooltip: 'Eliminar',
+          ),
+        ],
       ),
+      onTap: () => onEdit(item),
     );
   }
 }

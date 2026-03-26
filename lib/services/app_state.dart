@@ -148,11 +148,32 @@ class AppState with ChangeNotifier {
   }
 
   Future<bool> toggleShoppingItem(String id, bool completed) async {
+    // Optimistic UI update
+    final index = _shoppingList.indexWhere((item) => item.id == id);
+    if (index != -1) {
+      final old = _shoppingList[index];
+      _shoppingList[index] = ShoppingItem(
+        id: old.id,
+        name: old.name,
+        quantity: old.quantity,
+        unit: old.unit,
+        priority: old.priority,
+        category: old.category,
+        notes: old.notes,
+        completed: completed,
+        createdAt: old.createdAt,
+      );
+      notifyListeners();
+    }
+
     final result = await _service.toggleShoppingComplete(id, completed);
     if (result.isSuccess) {
+      // Opcional: recargar después, la UI ya está actualizada.
       await fetchShoppingList();
       return true;
     } else {
+      // Si falla, revertir recargando de la base de datos
+      await fetchShoppingList();
       _setError(result.error);
       return false;
     }
