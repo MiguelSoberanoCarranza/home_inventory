@@ -291,6 +291,11 @@ class _LocationSection extends StatelessWidget {
     final expiringSoon = lots.where((lot) => lot.statusColor == 'yellow').length;
     final expired = lots.where((lot) => lot.statusColor == 'red').length;
 
+    final groupedByProduct = <String, List<InventoryLot>>{};
+    for (var lot in lots) {
+      groupedByProduct.putIfAbsent(lot.productId, () => []).add(lot);
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
@@ -319,11 +324,17 @@ class _LocationSection extends StatelessWidget {
           ),
         ),
         subtitle: Text(
-          '${lots.length} producto${lots.length == 1 ? '' : 's'}'
+          '${groupedByProduct.length} producto${groupedByProduct.length == 1 ? '' : 's'}'
           '${expired > 0 ? ' • $expired vencido${expired == 1 ? '' : 's'}' : ''}'
           '${expiringSoon > 0 ? ' • $expiringSoon por vencer' : ''}',
         ),
-        children: lots.map((lot) => _LotTile(lot: lot)).toList(),
+        children: groupedByProduct.values.map((productLots) {
+          if (productLots.length == 1) {
+            return _LotTile(lot: productLots.first);
+          } else {
+            return _MultiLotTile(lots: productLots);
+          }
+        }).toList(),
       ),
     );
   }
@@ -416,6 +427,143 @@ class _LotTile extends StatelessWidget {
   }
 
   Color _getStatusColor() {
+    switch (lot.statusColor) {
+      case 'red':
+        return Colors.red;
+      case 'yellow':
+        return Colors.orange;
+      default:
+        return Colors.green;
+    }
+  }
+}
+
+class _MultiLotTile extends StatelessWidget {
+  final List<InventoryLot> lots;
+  
+  const _MultiLotTile({required this.lots});
+
+  @override
+  Widget build(BuildContext context) {
+    // Sort lots by expiration date (soonest first)
+    final sortedLots = List<InventoryLot>.from(lots)..sort((a, b) {
+      if (a.expiresOn == null && b.expiresOn == null) return 0;
+      if (a.expiresOn == null) return 1;
+      if (b.expiresOn == null) return -1;
+      return a.expiresOn!.compareTo(b.expiresOn!);
+    });
+
+    final product = sortedLots.first.product;
+    final totalQuantity = sortedLots.fold<double>(0, (sum, lot) => sum + lot.quantity);
+    final unit = sortedLots.first.unit;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 0,
+      color: const Color(0xFFFAFAFA),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    product?.name ?? 'Producto desconocido',
+                    style: GoogleFonts.outfit(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Total: $totalQuantity $unit',
+                    style: const TextStyle(
+                      color: Color(0xFF2E7D32),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade200),
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+              ),
+              child: Column(
+                children: sortedLots.map((lot) {
+                  final lotColor = _getLotStatusColor(lot);
+                  return InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => AddEditLotScreen(lot: lot)),
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: lotColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '${lot.quantity} ${lot.unit}',
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          if (lot.expiresOn != null)
+                            Row(
+                              children: [
+                                Icon(LucideIcons.clock, size: 14, color: Colors.grey.shade600),
+                                const SizedBox(width: 4),
+                                Text(
+                                  DateFormat('dd/MM/yy').format(lot.expiresOn!),
+                                  style: TextStyle(
+                                    fontSize: 13, 
+                                    color: lot.statusColor == 'red' ? Colors.red : Colors.grey.shade700
+                                  ),
+                                ),
+                              ],
+                            ),
+                          const SizedBox(width: 8),
+                          Icon(Icons.chevron_right, size: 18, color: Colors.grey.shade400),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getLotStatusColor(InventoryLot lot) {
     switch (lot.statusColor) {
       case 'red':
         return Colors.red;

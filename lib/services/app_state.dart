@@ -10,12 +10,14 @@ class AppState with ChangeNotifier {
   List<InventoryLot> _inventory = [];
   List<ShoppingItem> _shoppingList = [];
   List<Location> _locations = [];
+  List<Recipe> _recipes = [];
 
   // Public getters (immutable)
   List<Product> get products => List.unmodifiable(_products);
   List<InventoryLot> get inventory => List.unmodifiable(_inventory);
   List<ShoppingItem> get shoppingList => List.unmodifiable(_shoppingList);
   List<Location> get locations => List.unmodifiable(_locations);
+  List<Recipe> get recipes => List.unmodifiable(_recipes);
 
   // State
   bool isLoading = false;
@@ -33,6 +35,7 @@ class AppState with ChangeNotifier {
         fetchInventory(),
         fetchShoppingList(),
         fetchLocations(),
+        fetchRecipes(),
       ]);
     } catch (e) {
       errorMessage = 'Error al cargar datos: $e';
@@ -65,6 +68,17 @@ class AppState with ChangeNotifier {
     }
   }
 
+  Future<Product?> addOrEditProduct(Map<String, dynamic> data) async {
+    final result = await _service.upsertProduct(data);
+    if (result.isSuccess) {
+      await fetchProducts();
+      return result.data;
+    } else {
+      _setError(result.error);
+      return null;
+    }
+  }
+
   Future<bool> fetchInventory() async {
     final result = await _service.getInventory();
     if (result.isSuccess) {
@@ -93,6 +107,18 @@ class AppState with ChangeNotifier {
     final result = await _service.getLocations();
     if (result.isSuccess) {
       _locations = result.data!;
+      notifyListeners();
+      return true;
+    } else {
+      _setError(result.error);
+      return false;
+    }
+  }
+
+  Future<bool> fetchRecipes() async {
+    final result = await _service.getRecipes();
+    if (result.isSuccess) {
+      _recipes = result.data!;
       notifyListeners();
       return true;
     } else {
@@ -174,6 +200,29 @@ class AppState with ChangeNotifier {
     } else {
       // Si falla, revertir recargando de la base de datos
       await fetchShoppingList();
+      _setError(result.error);
+      return false;
+    }
+  }
+
+  // Recipe actions
+  Future<bool> addOrEditRecipe(Map<String, dynamic> data) async {
+    final result = await _service.upsertRecipe(data);
+    if (result.isSuccess) {
+      await fetchRecipes();
+      return true;
+    } else {
+      _setError(result.error);
+      return false;
+    }
+  }
+
+  Future<bool> deleteRecipe(String id) async {
+    final result = await _service.deleteRecipe(id);
+    if (result.isSuccess) {
+      await fetchRecipes();
+      return true;
+    } else {
       _setError(result.error);
       return false;
     }

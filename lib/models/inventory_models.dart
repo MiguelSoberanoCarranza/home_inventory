@@ -145,3 +145,35 @@ class ShoppingItem {
     );
   }
 }
+
+class Recipe {
+  final String id;
+  final String title;
+  final String description;
+  final List<String> ingredients;
+  final String instructions;
+  final String? imageUrl;
+  final DateTime createdAt;
+
+  Recipe({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.ingredients,
+    required this.instructions,
+    this.imageUrl,
+    required this.createdAt,
+  });
+
+  factory Recipe.fromJson(Map<String, dynamic> json) {
+    return Recipe(
+      id: json['id'],
+      title: json['title'] ?? 'Sin título',
+      description: json['description'] ?? '',
+      ingredients: List<String>.from(json['ingredients'] ?? []),
+      instructions: json['instructions'] ?? '',
+      imageUrl: json['image_url'],
+      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+    );
+  }
+}

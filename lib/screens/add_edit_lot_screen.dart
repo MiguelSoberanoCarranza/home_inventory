@@ -77,23 +77,49 @@ class _AddEditLotScreenState extends State<AddEditLotScreen> {
                 children: [
                   _buildHeader('Producto y Cantidad'),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _selectedProduct,
-                    decoration: const InputDecoration(
-                      labelText: 'Producto (Catálogo)',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(),
-                    ),
-                    items: state.products
-                        .map((p) => DropdownMenuItem(
-                              value: p.id,
-                              child: Text(p.name),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() => _selectedProduct = v),
-                    validator: (v) =>
-                        v == null ? 'Selecciona un producto' : null,
+                  Autocomplete<Product>(
+                    initialValue: TextEditingValue(text: _nameController.text),
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.isEmpty) {
+                        return const Iterable<Product>.empty();
+                      }
+                      return state.products.where((Product p) {
+                        return p.name
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase());
+                      });
+                    },
+                    displayStringForOption: (Product p) => p.name,
+                    onSelected: (Product p) {
+                      setState(() {
+                        _selectedProduct = p.id;
+                        _nameController.text = p.name;
+                      });
+                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onFieldSubmitted) {
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre del Producto',
+                          hintText: 'Ej: Leche, Arroz...',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(LucideIcons.package),
+                        ),
+                        onChanged: (v) {
+                          _nameController.text = v;
+                          final exists = state.products.any((p) =>
+                              p.name.toLowerCase() == v.trim().toLowerCase());
+                          if (!exists) _selectedProduct = null;
+                        },
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Ingresa un nombre'
+                            : null,
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -267,11 +293,51 @@ class _AddEditLotScreenState extends State<AddEditLotScreen> {
       return;
     }
 
-    if (_selectedProduct == null) {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona un producto')),
+        const SnackBar(content: Text('Por favor ingresa un nombre')),
       );
       return;
+    }
+
+    setState(() => _isSaving = true);
+    final appState = context.read<AppState>();
+
+    // 1. Resolver el producto (usar existente o crear uno nuevo)
+    String? productId = _selectedProduct;
+    
+    // Si no tenemos ID seleccionado, buscamos por nombre exacto
+    if (productId == null) {
+      final existingProduct = appState.products.firstWhere(
+        (p) => p.name.toLowerCase() == name.toLowerCase(),
+        orElse: () => Product(id: '', name: '', category: '', defaultUnit: '', createdAt: DateTime.now()), // Placeholder
+      );
+
+      if (existingProduct.id.isNotEmpty) {
+        productId = existingProduct.id;
+      } else {
+        // Crear nuevo producto
+        final newProduct = await appState.addOrEditProduct({
+          'name': name,
+          'category': 'General',
+          'default_unit': _unitController.text,
+        });
+        if (newProduct == null) {
+          setState(() => _isSaving = false);
+          return; // El error ya se setea en appState
+        }
+        productId = newProduct.id;
+      }
+    } else {
+      // Verificar si el nombre cambió para el producto existente y actualizarlo si es necesario
+      final p = appState.products.firstWhere((p) => p.id == productId);
+      if (p.name != name) {
+        await appState.addOrEditProduct({
+          'id': productId,
+          'name': name,
+        });
+      }
     }
 
     final quantity = double.tryParse(_quantityController.text);
@@ -279,14 +345,13 @@ class _AddEditLotScreenState extends State<AddEditLotScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cantidad inválida')),
       );
+      setState(() => _isSaving = false);
       return;
     }
 
-    setState(() => _isSaving = true);
-
     final data = {
       if (widget.lot != null) 'id': widget.lot!.id,
-      'product_id': _selectedProduct,
+      'product_id': productId,
       'quantity': quantity,
       'unit': _unitController.text,
       'location_id': _selectedLocationId,

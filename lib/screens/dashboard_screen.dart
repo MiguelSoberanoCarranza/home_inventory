@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/app_state.dart';
+import 'add_edit_lot_screen.dart';
+import 'shopping_list_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -139,6 +141,7 @@ class DashboardScreen extends StatelessWidget {
                                   title: lot.product?.name ?? 'Producto desconocido',
                                   subtitle: lot.locationName,
                                   trailing: '${lot.quantity} ${lot.unit}',
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddEditLotScreen(lot: lot))),
                                 ),
                               )
                               .toList(),
@@ -157,6 +160,7 @@ class DashboardScreen extends StatelessWidget {
                                   title: lot.product?.name ?? 'Producto desconocido',
                                   subtitle: lot.locationName,
                                   trailing: '${lot.quantity} ${lot.unit}',
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddEditLotScreen(lot: lot))),
                                 ),
                               )
                               .toList(),
@@ -175,6 +179,7 @@ class DashboardScreen extends StatelessWidget {
                                   title: item.name,
                                   subtitle: item.category,
                                   trailing: '${item.quantity} ${item.unit}',
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShoppingListScreen())),
                                 ),
                               )
                               .toList(),
@@ -618,44 +623,54 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F8F7),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: item.onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
               children: [
-                Text(
-                  item.title,
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.subtitle,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(width: 12),
                 Text(
-                  item.subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
+                  item.trailing,
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1F2E20),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          Text(
-            item.trailing,
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF1F2E20),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -768,11 +783,13 @@ class _ActionItemData {
   final String title;
   final String subtitle;
   final String trailing;
+  final VoidCallback? onTap;
 
   const _ActionItemData({
     required this.title,
     required this.subtitle,
     required this.trailing,
+    this.onTap,
   });
 }
 

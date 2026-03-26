@@ -9,6 +9,7 @@ import 'screens/inventory_screen.dart';
 import 'screens/expiry_screen.dart';
 import 'screens/shopping_list_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/recipes_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -116,6 +117,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const InventoryScreen(),
     const ExpiryScreen(),
     const ShoppingListScreen(),
+    const RecipesScreen(),
   ];
 
   @override
@@ -137,6 +139,7 @@ class _MainNavigationState extends State<MainNavigation> {
           BottomNavigationBarItem(icon: Icon(Icons.inventory_2_rounded), label: 'Inventario'),
           BottomNavigationBarItem(icon: Icon(Icons.event_note_rounded), label: 'Caduci.'),
           BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_rounded), label: 'Lista'),
+          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: 'Recetas'),
         ],
       ),
     );

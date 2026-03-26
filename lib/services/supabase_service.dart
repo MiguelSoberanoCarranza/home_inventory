@@ -29,6 +29,22 @@ class SupabaseService {
     }
   }
 
+  Future<Result<Product>> upsertProduct(Map<String, dynamic> data) async {
+    try {
+      data['user_id'] = _userId;
+      final response = await supabase
+          .from('products')
+          .upsert(data)
+          .select()
+          .single();
+      return Result.success(Product.fromJson(response));
+    } on PostgrestException catch (e) {
+      return Result.failure('Error al guardar producto: ${e.message}');
+    } catch (e) {
+      return Result.failure('Error inesperado: $e');
+    }
+  }
+
   // --- Inventory Lots ---
   Future<Result<List<InventoryLot>>> getInventory() async {
     try {
@@ -126,7 +142,6 @@ class SupabaseService {
     }
   }
 
-  // --- Locations ---
   Future<Result<List<Location>>> getLocations() async {
     try {
       final response = await supabase.from('locations').select().eq('user_id', _userId);
@@ -135,6 +150,47 @@ class SupabaseService {
       return Result.success(locations);
     } on PostgrestException catch (e) {
       return Result.failure('Error de base de datos: ${e.message}');
+    } catch (e) {
+      return Result.failure('Error inesperado: $e');
+    }
+  }
+
+  // --- Recipes ---
+  Future<Result<List<Recipe>>> getRecipes() async {
+    try {
+      final response = await supabase
+          .from('recipes')
+          .select()
+          .eq('user_id', _userId)
+          .order('created_at', ascending: false);
+      final recipes =
+          (response as List).map((json) => Recipe.fromJson(json)).toList();
+      return Result.success(recipes);
+    } on PostgrestException catch (e) {
+      return Result.failure('Error de base de datos: ${e.message}');
+    } catch (e) {
+      return Result.failure('Error inesperado: $e');
+    }
+  }
+
+  Future<Result<void>> upsertRecipe(Map<String, dynamic> data) async {
+    try {
+      data['user_id'] = _userId;
+      await supabase.from('recipes').upsert(data);
+      return const Result.success(null);
+    } on PostgrestException catch (e) {
+      return Result.failure('Error al guardar receta: ${e.message}');
+    } catch (e) {
+      return Result.failure('Error inesperado: $e');
+    }
+  }
+
+  Future<Result<void>> deleteRecipe(String id) async {
+    try {
+      await supabase.from('recipes').delete().match({'id': id, 'user_id': _userId});
+      return const Result.success(null);
+    } on PostgrestException catch (e) {
+      return Result.failure('Error al eliminar receta: ${e.message}');
     } catch (e) {
       return Result.failure('Error inesperado: $e');
     }
